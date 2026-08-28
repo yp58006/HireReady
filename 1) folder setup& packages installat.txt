@@ -1,0 +1,171 @@
+
+1) npm init, folder setup server client package installn, 
+2) basic server by express, basic mongodb setup
+//here module type is follwed, not commonjs, 
+//in module we import export, else we require in the commonjs setup
+3) .env , git add . setup of folders
+4) mongodb setup & database connect (mongodb atlas)
+set mongoddb acess from everywhere on website
+// the 2 dns lines are for , error occured in using mongodb atlas.
+
+Now 
+//user schema and model setup
+//for google authenticatin, we dont need password, image etc, it gives us automatically
+ 
+
+ //Basic Server Done  and database connected ... (models created)
+
+ //Now  client side means frontend side
+ Client Side, bring vite project of react + javascript 
+ import tailwind also
+
+
+import tailwind apply on the index.css main page 
+now import all nessary thingss like react axios , react router dom, react icons 
+
+create a basic set up of home page first, then set up authentication page  
+
+authentication by firebase , register project there
+
+setup firebase.js in utils, and all the api keys should be in .env file
+Now copy firebase SDK of project in te utils in firebase.js
+Now put api key in .env, and 
+in commmonjs type we use process.env. and in module js format we use import.meta.env.
+Now create app in firebase, create app, enable authentication, create a provider, import the auth and provider 
+
+Now create a authentication page, and a continue with google option , onclick,A function runs handlegoogleauth
+there get response from user by a signinwithpopup option, and provide auth and provider to it .
+you got response , which has all information provided  from google side ...
+
+Now you got response from google having information, 
+Now you need to authenticate this user ? is he a new user or a old user  , and assign him cookies,
+You need to send this data to the server side, (the name and email, through which you will identify if its already registered or not)
+//for now suppose the server side got the information of name , email of user
+
+For this 
+ start from the server side .
+Small functions write in config
+(req, res) write this part in controllers
+in Router folder, we create routes 
+
+
+ExPlainAtion of Authentication Part
+eg :=>  app.get("/users", ...)
+app.post("/users/id", ...)
+app.get("/users/product", ...)   this would be comming in app.js , Becomes Messy , So instead of this  What we DO is 
+// we create a route file in router folder
+Having := 
+const router = express.Router(); //a mini express application
+router.get("/", ...)
+router.post("/id", ...)
+router.get("/product", ...)
+module.exports = router;
+Now , in app.js =>
+const userRoutes = require("./routes/userRoutes");
+app.use("/users", userRoutes);  Now whenever a request will come to app.post("/users/id", ...), it will redirect to thr router file to acess there .
+
+Now app.post("/users/id", (req, res)=>{
+    // Work 
+})  So this work becomes messy, so instead convert this into a function, and write the work in controllers folder, (req, res) go to controller auth.controller.js
+
+
+Same Folder Structure Here also Done 
+// we have the users name, email, Now
+now 1st check email in database, if not so create a user, Now after that, assign a cookie to the user (wrap its user._id int it), set cookie in response
+so that it gets saved in users browser (no giving pass and email again and again ), Now Just this much, need to be done, till Now to authenticate user 
+//How is it done ? => server url saved and exported from app.jsx in client, And using it and using axios post request made to that url (in auth.jsx) along with info
+Now in server side, anyone randomly cant acess the server bandwidth , only servers url is allowed to acess it freely 
+but cors help to solve this problem , in index.js in server => app.use(cors({
+    origin : "frontend url",  // frontend Url , Requests from this url are also allowed 
+    credentials : true
+}));  so front end also got acess to backend, 
+Now request came localhost:8000/api/auth/google
+the /api/auth is a common route , means we made a router for this which is "app.use("/api/auth", authRouter);", 
+and inside this we provide acess to 2 routes /google for auth and /logout for logout in the authrouter from auth.router.js
+authRouter is that router , we resolve 2 routes there /google and /logout
+And instead of (req,res) we used 2 controllers, googleAuth and Logout in controller.js file in controller folder
+in logout, we just clear the cookie 
+in google auth,we 1st find/create user, create token from user._id, set it,  if cookie sucessfully set so return user , else error return
+in frontend in console we can see result that if user is comming so ok perfect work 
+for creating token, sign the user._id by JWT SECRET KEY (any Key) from the .env file using jwt ..
+
+sucess 200 status code, server error 500 status code, frontend error 400 code
+export Default use when same file needs to be acessed outside also
+Now token set, Now Multiple times a user can come, or can make multiple different requests, 
+in each request if its a legitimte user , it would be having token, so we need to verify the token, In between this process will also give us user information 
+Now For this Again From the FrontEnd a get request goes to backend via axios , and the toeken of user is automatically in req.cookies.token
+request is like this localhost:8000/api/user
+Now again in index.js we made a common route /api/user which goes to userRouter and there a middleware is used checkAuth which verifies token and gets the ._id stored in it And store it in the same request
+by the next in middleware it goes next to conteoller usercontroller Now here the user is found in database, by its ._id, and if got so user returned ....
+
+this request is like a protected route, to prevent user to go to a route where login was needed ..
+
+//Now If we got the user info, so it can be acessed and changed anywhere in src or in app, 
+//and a state declared can only be acesses in that file
+//we use redux , FOR this purpose,
+So Complete ExPlainAtionin Notes Done , 
+here file structure is src->redux folder -> store.js and slices folder 
+Now whenever acesing a state declared in redux, we will use getselector to acess it 
+and to  change its value we use dispatch ..
+
+FOR now userdata is a state in redux store 
+
+Now Got The User Data,
+Create Home Page, Navbar Page And Addd user details like name, credits, basic Ui, And Logout working functinality
+
+//Now Total 3 to do steps 1. interview setup 2. interview 3. report ..
+// The Front End Part Do Later  interviewpage, interviewreport, setup, interview, report.jsx all these files made
+
+//FIrst We do is , taking resume from user and analysing it and giving analysed data in form of prompt to AI and getting resume questions form it, and other nessery things
+
+on server side =>
+1.setup the multer part, directly same as documentation .(multer middleware) We KNow Why its needed
+// we use a public folder, where all the files will be stored, SET A MAX SIZE LIMIT TO FILE / LIKE 5 MB
+And Whenever a file comes from the frontend to backend, a middleware call goes to multer, uploads.single('filename') or like uploads.array('filename') or as per data you send to backend
+it takes data from that post request and as express usually cant parse the multiformdata, so multer is used as a middleware, multer searches it by filename and diskstorage saves it in /public
+//then multer add the same file or information to req.file which can be easily acessible in backend, Now request goes to its way 
+
+2.Now We Set Up the OpenRouter Api part, Why openrouter ??, as in this in one api, we can use many tyes of models., select Any Model
+so for this services folder -> open routerservce.js // for openrouter connextion AND 
+//get your api key from openrouter, save in .env 
+ANd openrouter can be used 2 ways , installing or by url , we do by url here
+in that , complete openrouter.services.js here we send our message to API, so assume you have the message, now do post request 
+via axios, so install axios, ANd then  4things we give is  Url , our APi, message, and the model name , the Headers part (READ DOCUMENTATION)
+//can also generte documentation of openrouter setup in javascript , on website its in typescript by Ai, understand it 
+you get content of response in const content = response?.data?.choices?.[0]?.message?.content;  // its fixed , same always 
+
+
+Now 
+suppose we will take resume from user, and now make a request at backend to analyse it, and extract info from it 
+so , for this request and all, we need a interview route , interviewcontroller, and interviewmodel storing the interview experiences ..
+
+supppose we got the pdf in req.file,  you got the path to it(req.file has various features like size, path, buffer, data, etc) SO how to extract text from it and convert it to a prompt ??
+instal pdfjs-dist library, for this things ,1. we read pdf via the fs modules, and its read in binary format , filebuffer
+convert it to format what pdfjs library want uint8array, Now see copy the rest documentation of this feature ...
+rest just copy documentation 
+
+after getting the analysed version from pdf(resumetxt), delete the pdf via the fsmodule features from node, and we got the resumetxt, 
+Now write a prompt to ai, and inside tell what response you want, here we asked for projects, skills, role, experience of working   taking care of json formatting in response 
+Now this response from ai, send it back to response (frontend).  := these ALL things in interview controller 
+
+
+Now in frontend , create the Setup Page, ask for what role to apply, experiece and type of interview hr, tech, managerial , resume
+send post request to backend on /api/interview/resume 
+all this data taken, 4 things saved in formdata a special js object, having entries like "fieldname" : content , its itself a object so dont sent in {} , just send normally 
+sent to backend 
+
+create interview route, whch gets a post request, having all the form data, 
+Now in this, 1st /resume route, and isAuth Middleware, uploads.single(resume) // multer part , and finally call to controller
+in this upload.single, in this the name should be same as the name in field in formdata object Vimp 
+
+//got the skills projects experience on frontend  Now just display it on frontend .....
+
+
+// Now b this you wull take input from user he is interviewing for, his role , expereinece, resume, and now you make a request to 
+//Now create COntrllers for all generating question, submit answer and finish interview
+// all 4 router controller creation,
+till getting the interview questions on the front end DONE
+// Done This Much 
+
+
+//Now Creating the Live interview Setup .
