@@ -1,6 +1,6 @@
 import { signInWithPopup } from 'firebase/auth'
 import React from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { auth, googleAuthProvider } from '../utils/firebase'
 import { serverurl } from '../App'
 import axios from 'axios'
@@ -10,6 +10,7 @@ import { setUserdata } from '../redux/slices/userSlice'
 function Auth() {
   const dispatch = useDispatch()
   const navigate = useNavigate()
+  const location = useLocation()
 
   const handleGoogleAuth = async () => {
     try {
@@ -22,7 +23,7 @@ function Auth() {
       const result = await axios.post(`${serverurl}/api/auth/google`, { name, email, image }, { withCredentials: true })
 
       dispatch(setUserdata(result.data))
-      navigate('/')
+      navigate(location.state?.from?.pathname || '/', { replace: true })
     } catch (error) {
       console.log(error)
       dispatch(setUserdata(null))
