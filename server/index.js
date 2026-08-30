@@ -23,7 +23,7 @@ app.use(express.json());
 app.use(cookieParser());
 
 app.use(cors({
-    origin : "http://localhost:5173",  // frontend Url , Requests from this url are also allowed 
+    origin : "https://hireready-client-2ay9.onrender.com",  // frontend Url , Requests from this url are also allowed 
     credentials : true
 }));
 
