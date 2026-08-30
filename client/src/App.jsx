@@ -11,7 +11,7 @@ import Pricing from './pages/pricing.jsx'
 import Myorders from './pages/Myorders.jsx'
 import { setUserdata } from './redux/slices/userSlice.js'
 
-export const serverurl = "http://localhost:8000";
+export const serverurl = "https://hireready-dbzk.onrender.com";
 
 function App() {
   const dispatch = useDispatch()
