@@ -12,9 +12,7 @@ import { upload } from "../middlewares/multer.js"
 
 const interviewRouter = express.Router(); // a mini express routing application
 
-console.log("helloji");
 interviewRouter.post("/resume", checkAuth, upload.single("resume"), pdfAnalyse);
-console.log("Going To Generate Questions ");
 interviewRouter.post("/generatequestion", checkAuth, generateQuestion);
 interviewRouter.post("/submitanswer", checkAuth, submitanswer);
 interviewRouter.post("/finish", checkAuth, finishInterview);

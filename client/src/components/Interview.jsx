@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import axios from 'axios'
+import { useSelector } from 'react-redux'
 import { FiArrowRight, FiCheck, FiClock, FiMic, FiMicOff, FiVolume2 } from 'react-icons/fi'
 import { serverurl } from '../App.jsx'
 import './interview.css'
 
 function Interview({ interviewdata, onfinish }) {
+  const userData = useSelector((state) => state.user.userData)
   const questions = useMemo(() => interviewdata?.questions || [], [interviewdata])
   const [questionIndex, setQuestionIndex] = useState(0)
   const [answer, setAnswer] = useState('')
@@ -12,6 +14,7 @@ function Interview({ interviewdata, onfinish }) {
   const [isListening, setIsListening] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [subtitle, setSubtitle] = useState('')
+  const [lastFeedback, setLastFeedback] = useState('')
   const [isQuestionSpeaking, setIsQuestionSpeaking] = useState(true)
   const [voiceStatus, setVoiceStatus] = useState('')
   const [interimTranscript, setInterimTranscript] = useState('')
@@ -22,15 +25,49 @@ function Interview({ interviewdata, onfinish }) {
   const currentQuestion = questions[questionIndex]
   const totalQuestions = questions.length || 1
   const progress = ((questionIndex + 1) / totalQuestions) * 100
+  const currentTimeLimit = currentQuestion?.timeLimit || 60
+  const timerProgress = isQuestionSpeaking ? 0 : (timeLeft / currentTimeLimit) * 360
+  const timerColor = timeLeft <= 10 ? '#ef4444' : timeLeft <= 20 ? '#f59e0b' : '#2563eb'
+  const sessionStatus = isQuestionSpeaking
+    ? 'AI is speaking'
+    : isListening
+      ? 'AI is listening'
+      : isSubmitting
+        ? 'AI is preparing the next response'
+        : 'Interview in progress'
 
-  // Speak text and show subtitles
-  const speakText = useCallback((text) => new Promise((resolve) => {
+  const playWarningTone = useCallback(() => {
+    const AudioCtor = window.AudioContext || window.webkitAudioContext
+    if (!AudioCtor) return
+
+    try {
+      const context = new AudioCtor()
+      const oscillator = context.createOscillator()
+      const gainNode = context.createGain()
+
+      oscillator.type = 'sine'
+      oscillator.frequency.value = 800
+      gainNode.gain.value = 0.03
+      oscillator.connect(gainNode)
+      gainNode.connect(context.destination)
+      oscillator.start()
+      oscillator.stop(context.currentTime + 0.08)
+      setTimeout(() => context.close(), 120)
+    } catch (error) {
+      console.error('Warning sound failed:', error)
+    }
+  }, [])
+
+  // Speak text and optionally show subtitles for the active question
+  const speakText = useCallback((text, showSubtitle = true) => new Promise((resolve) => {
     if (!text) {
       resolve()
       return
     }
 
-    setSubtitle(text)
+    if (showSubtitle) {
+      setSubtitle(text)
+    }
     if (!('speechSynthesis' in window)) {
       resolve()
       return
@@ -61,14 +98,17 @@ function Interview({ interviewdata, onfinish }) {
   useEffect(() => {
     if (!currentQuestion) return undefined
 
+    setLastFeedback('')
+
     let cancelled = false
-    const username = interviewdata?.username || 'there'
+    const rawUsername = interviewdata?.username || interviewdata?.userName || interviewdata?.user?.name || userData?.name || userData?.fullName || userData?.user?.name || 'there'
+    const username = String(rawUsername).split(' ')[0]
     const text = questionIndex === 0
-      ? `Welcome, ${username}. I am your AI interview coach. We will begin with a few questions, so take your time and answer clearly. ${currentQuestion.question}`
+      ? `Hi ${username}, I am your AI interview coach. We will begin with a few questions, so take your time and answer clearly. ${currentQuestion.question}`
       : currentQuestion.question
 
     setIsQuestionSpeaking(true)
-    speakText(text).then(() => {
+    speakText(text, true).then(() => {
       if (!cancelled) setIsQuestionSpeaking(false)
     })
 
@@ -76,7 +116,7 @@ function Interview({ interviewdata, onfinish }) {
       cancelled = true
       window.speechSynthesis?.cancel()
     }
-  }, [currentQuestion, interviewdata?.username, questionIndex, speakText])
+  }, [currentQuestion, interviewdata?.username, interviewdata?.userName, interviewdata?.user?.name, userData?.name, userData?.fullName, userData?.user?.name, questionIndex, speakText])
 
   // Stop speech when interview screen closes
   useEffect(() => () => window.speechSynthesis?.cancel(), []) 
@@ -199,10 +239,15 @@ function Interview({ interviewdata, onfinish }) {
       submitAnswerRef.current?.() // Submit Answer
       return undefined
     }
+
+    if (timeLeft <= 10) {
+      playWarningTone()
+    }
+
     const timer = window.setInterval(() => setTimeLeft((value) => value - 1), 1000) // set interval used
     return () => window.clearInterval(timer) // Imp to clear interval after every Unmount or removal of component , Called By Readt Itself
     // its a Self CleanUp Function of Use Effect
-  }, [timeLeft, currentQuestion, isSubmitting, isQuestionSpeaking])
+  }, [timeLeft, currentQuestion, isSubmitting, isQuestionSpeaking, playWarningTone])
 
   const submitAnswer = async () => {
     if (!currentQuestion || isSubmitting) return
@@ -217,16 +262,15 @@ function Interview({ interviewdata, onfinish }) {
         timetaken: (currentQuestion.timeLimit || 60) - timeLeft,
       }, { withCredentials: true })
 
-      console.log(answerResponse);
-      // Read feedback before moving forward
-      await speakText(answerResponse.data?.feedback || 'Your answer has been recorded.')
+      const feedbackText = answerResponse.data?.feedback || 'Your answer has been recorded. Let’s continue.'
+      setLastFeedback(feedbackText)
+      await speakText(feedbackText, false)
 
       if (questionIndex === questions.length - 1) {
         const report = await axios.post(`${serverurl}/api/interview/finish`, {
           interviewid: interviewdata.interviewid,
         }, { withCredentials: true })
         onfinish?.(report.data)
-        console.log(report);
       } else {
         setIsQuestionSpeaking(true)
         setQuestionIndex((value) => value + 1)
@@ -252,48 +296,127 @@ function Interview({ interviewdata, onfinish }) {
           <span className="eyebrow">Live interview</span>
           <h1>Show what you know.</h1>
         </div>
-        <div className="session-chip"><span className="live-dot" /> Session in progress</div>
+        <div className="session-chip">
+          <span className="live-dot" />
+          Session in progress
+        </div>
       </div>
 
       <section className="interview-board">
         <aside className="interview-sidebar">
-          <div className="avatar-placeholder" aria-label="Media placeholder">MEDIA PLACEHOLDER</div>
+          <div className="ai-video-panel" aria-label="AI interviewer video area">
+            <div className="ai-avatar-ring">
+              <div className="ai-avatar">AI</div>
+            </div>
+            <div className="micro-wave">
+              <span />
+              <span />
+              <span />
+              <span />
+            </div>
+          </div>
+
           <div className="welcome-note">
-            <span className="note-label">Your interviewer</span>
+            <span className="note-label">Your AI interviewer</span>
             <strong>AI Interview Coach</strong>
             <p>Take a breath, think clearly, and answer as you would in a real conversation.</p>
           </div>
 
           <div className="status-panel">
-            <div className="status-heading"><span>Interview status</span><b>In progress</b></div>
-            <div className="timer-ring" style={{ '--timer-progress': `${isQuestionSpeaking ? 0 : (timeLeft / (currentQuestion.timeLimit || 60)) * 360}deg` }}>
-              <div><FiClock /><strong>{isQuestionSpeaking ? 'Ready' : `${timeLeft}s`}</strong><span>{isQuestionSpeaking ? 'Listen first' : 'remaining'}</span></div>
+            <div className="status-heading">
+              <span>Interview status</span>
+              <b>{isSubmitting ? 'Processing' : 'In progress'}</b>
             </div>
-            <div className="question-count"><span><b>{questionIndex + 1}</b> Current question</span><span><b>{questions.length}</b> Total questions</span></div>
+
+            <div
+              className="timer-ring"
+              style={{
+                background: `conic-gradient(${timerColor} ${timerProgress}deg, #e7eef9 0)`,
+              }}
+            >
+              <div>
+                <FiClock />
+                <strong>{isQuestionSpeaking ? 'Ready' : `${timeLeft}s`}</strong>
+                <span>{isQuestionSpeaking ? 'Listen first' : 'remaining'}</span>
+              </div>
+            </div>
+
+            <div className="question-count">
+              <span><b>{questionIndex + 1}</b> Current question</span>
+              <span><b>{questions.length}</b> Total</span>
+            </div>
           </div>
         </aside>
 
         <div className="answer-panel">
-          <div className="question-meta"><span>Question {String(questionIndex + 1).padStart(2, '0')}</span><span className={`difficulty ${currentQuestion.difficulty}`}>{currentQuestion.difficulty || 'Interview'}</span></div>
-          <div className="progress-track"><span style={{ width: `${progress}%` }} /></div>
-          <div className="interviewer-subtitle" aria-live="polite">
-            <span>Interviewer</span>
-            <p>{subtitle || 'Click start when you are ready.'}</p>
-            <button className="replay-button" type="button" onClick={() => speakText(subtitle || currentQuestion.question)} aria-label="Replay interviewer speech" title="Replay interviewer speech">
-              <FiVolume2 /> Replay
-            </button>
+          <div className="question-bar">
+            <div className="question-meta">
+              <span>Question {String(questionIndex + 1).padStart(2, '0')}</span>
+              <span className={`difficulty ${currentQuestion.difficulty}`}>{currentQuestion.difficulty || 'Interview'}</span>
+            </div>
+            <div className="status-pill">{sessionStatus}</div>
           </div>
-          <h2>{currentQuestion.question}</h2>
-          <label className="answer-label" htmlFor="answer">Your answer</label>
-          <textarea id="answer" value={[answer, interimTranscript].filter(Boolean).join(' ')} onChange={(event) => { setAnswer(event.target.value); setInterimTranscript('') }} placeholder="Take your time and type your answer here..." />
-          <div className="answer-footer">
-            <button className={`mic-button ${isListening ? 'active' : ''}`} type="button" onClick={isListening ? stopListening : startListening} disabled={isQuestionSpeaking || isSubmitting} aria-label={isListening ? 'Stop microphone' : 'Start microphone'} title={isListening ? 'Stop microphone' : 'Start microphone'}>
-              {isListening ? <FiMicOff /> : <FiMic />}
-            </button>
-            <span className="answer-hint">{isListening ? voiceStatus || 'Listening...' : voiceStatus || 'You can also answer by voice'}</span>
-            <button className="submit-button" type="button" onClick={submitAnswer} disabled={isSubmitting}>
-              {isSubmitting ? 'Submitting...' : questionIndex === questions.length - 1 ? <><FiCheck /> Finish interview</> : <>Submit answer <FiArrowRight /></>}
-            </button>
+
+          <div className="progress-track">
+            <span style={{ width: `${progress}%` }} />
+          </div>
+
+          <div className="interviewer-card" aria-live="polite">
+            <div className="conversation-header">
+              <span>AI Interviewer</span>
+              <button
+                className="replay-button"
+                type="button"
+                onClick={() => speakText(subtitle || currentQuestion.question)}
+                aria-label="Replay interviewer speech"
+                title="Replay interviewer speech"
+              >
+                <FiVolume2 /> Replay
+              </button>
+            </div>
+
+            <p className="current-message">{subtitle || currentQuestion.question}</p>
+
+            {lastFeedback && (
+              <div className="feedback-strip">
+                <strong>Feedback</strong>
+                <p>{lastFeedback}</p>
+              </div>
+            )}
+          </div>
+
+          <div className="answer-box">
+            <label className="answer-label" htmlFor="answer">Your answer</label>
+            <textarea
+              id="answer"
+              value={[answer, interimTranscript].filter(Boolean).join(' ')}
+              onChange={(event) => {
+                setAnswer(event.target.value)
+                setInterimTranscript('')
+              }}
+              placeholder="Type your answer here..."
+            />
+
+            <div className="answer-footer">
+              <button
+                className={`mic-button ${isListening ? 'active' : ''}`}
+                type="button"
+                onClick={isListening ? stopListening : startListening}
+                disabled={isQuestionSpeaking || isSubmitting}
+                aria-label={isListening ? 'Stop microphone' : 'Start microphone'}
+                title={isListening ? 'Stop microphone' : 'Start microphone'}
+              >
+                {isListening ? <FiMicOff /> : <FiMic />}
+              </button>
+
+              <span className="answer-hint">
+                {isListening ? voiceStatus || 'Listening...' : voiceStatus || 'You can also answer by voice'}
+              </span>
+
+              <button className="submit-button" type="button" onClick={submitAnswer} disabled={isSubmitting}>
+                {isSubmitting ? 'Submitting...' : questionIndex === questions.length - 1 ? <><FiCheck /> Finish interview</> : <>Submit Answer <FiArrowRight /></>}
+              </button>
+            </div>
           </div>
         </div>
       </section>

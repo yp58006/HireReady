@@ -18,10 +18,15 @@ const interviewSchema = new mongoose.Schema({
   experience: { type: String, required: true },
   mode: {
     type: String,
-    enum: ['Hr', 'technical', 'managerial'],
+    enum: ['hr', 'technical', 'managerial'],
     required: true,
   },
   resumeTxt: { type: String },
+  skills: [{ type: String }],
+  projects: [{
+    name: { type: String },
+    description: { type: String },
+  }],
   finalScore: { type: Number, default: 0 },
   status: {
     type: String,

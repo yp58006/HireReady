@@ -14,17 +14,12 @@ const pdfAnalyse = async (req, res) => {
 			return res.status(400).json({ message: "PDF file is required" });
 		}
 
-		// console.log("FILE:", req.file);
-		// console.log("BODY:", req.body);
-
-		// console.log(1);
 		const data = fs.readFileSync(req.file.path); //the binary data or the buffer format
 
 		const pdf = await pdfjsLib.getDocument({
 			data: new Uint8Array(data),
 		}).promise;
 
-		// console.log(2);
 		let resumetxt = "";
 		for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
 			const page = await pdf.getPage(pageNumber);
@@ -33,10 +28,6 @@ const pdfAnalyse = async (req, res) => {
 		}
 		resumetxt = resumetxt.replace(/\s+/g, " ").trim();
 
-		// console.log(3);
-
-
-		// console.log(resumetxt)
 
         // Our Prompt To AI := 
 		const messages = [
@@ -58,13 +49,12 @@ const pdfAnalyse = async (req, res) => {
 			typeof Response === "string" ? Response : JSON.stringify(Response)
 		);
 
-		// console.log(parsed);
 
 		if (req.file?.path && fs.existsSync(req.file.path)) {
 			fs.unlinkSync(req.file.path); // delete the uploaded PDF after processing
 		}
 
-		console.log("Analysing Done");
+	
 
 		return res.status(200).json({
 			text: resumetxt,
@@ -73,7 +63,7 @@ const pdfAnalyse = async (req, res) => {
 	} catch (error) {
         // even now if file remaing , earlier error came in removing, so removeit 
         // if file is now also redable , so remove it , space is occupied 
-		console.log("pawar");
+
 		if (req.file?.path && fs.existsSync(req.file.path)) {
             fs.unlinkSync(req.file.path);
         }
@@ -89,7 +79,7 @@ const pdfAnalyse = async (req, res) => {
 
 const generateQuestion = async (req, res) => {
 	try {
-		console.log(1);
+		
 		const body = req.body || {};
 		let { role, experience, mode, resumetxt, projects, skills } = body;
 
@@ -102,41 +92,57 @@ const generateQuestion = async (req, res) => {
 				message: "Role, experience, and mode are required",
 			});
 		}
-		console.log(2);
+		
 
 		if (!req.user_id || !isValidObjectId(req.user_id)) {
 			return res.status(401).json({ message: "Invalid user ID" });
 		}
 
-		console.log(3);
 
 		const user = await User.findById(req.user_id);
 		if (!user) {
 			return res.status(404).json({ message: "User not found" });
 		}
-		if (user.credits <= 50) { 
-			user.credits = 999999;
-			await user.save();
+		if (user.credits < 50) { 
 			return res.status(403).json({ message: "Insufficient credits" });
 		}
 
-		console.log(4);
+		
 		role = String(role).trim();
 		experience = String(experience).trim();
 		mode = String(mode).trim();
 		// Resume text is optional; store an empty resume as an empty string.
 		const safeResume = resumetxt == null ? "" : String(resumetxt).trim();
 		
-		const projecttxt =
-			Array.isArray(projects) && projects.length
-				? projects.join(", ")
-				: "none";
-		const skilltxt =
-			Array.isArray(skills) && skills.length
-				? skills.join(", ")
-				: "none";
+		const normalizedProjects = Array.isArray(projects)
+			? projects
+				.map((project) => {
+					if (typeof project === "string") {
+						return { name: project.trim(), description: "" };
+					}
+					if (project && typeof project === "object") {
+						return {
+							name: String(project.name || "Project").trim(),
+							description: String(project.description || "").trim(),
+						};
+					}
+					return null;
+				})
+				.filter(Boolean)
+			: [];
 
-		console.log(4);
+		const normalizedSkills = Array.isArray(skills)
+			? skills
+				.map((skill) => String(skill).trim())
+				.filter(Boolean)
+			: [];
+
+		const projecttxt = normalizedProjects.length
+			? normalizedProjects.map((project) => project.name || project.description || "Project").join(", ")
+			: "none";
+		const skilltxt = normalizedSkills.length
+			? normalizedSkills.join(", ")
+			: "none";
 
 		const projectText = projecttxt.length >= 1 ? projecttxt : "none";
 		const skillText = skilltxt.length >= 1 ? skilltxt : "none";
@@ -180,7 +186,7 @@ Make questions based on the candidate's role, experience, interviewMode, project
 			{ role: "user", content: userPrompt },
 		]);
 
-		console.log(5);
+		
 
 		const responseText = typeof response === "string"
 			? response
@@ -200,13 +206,12 @@ Make questions based on the candidate's role, experience, interviewMode, project
 				.trim())
 			.filter(Boolean);
 
-			
-		console.log(6);
+	
 
 		const validQuestions = questions.length === 5 && questions.every((question) => question.length > 0);
 
 		
-		console.log(7);
+
 
 		if (!validQuestions) {
 			console.error("Invalid AI question response:", {
@@ -223,7 +228,6 @@ Make questions based on the candidate's role, experience, interviewMode, project
 		const interviewQuestions = questions.map((question, index) => {
 			const difficulty = questionDifficulties[index] ?? "hard";
 			const timeLimit = questionTimeLimits[index] ?? 120;
-console.log(9);
 
 			return {
 				question,
@@ -233,12 +237,9 @@ console.log(9);
 		});
 
 		
-		console.log(8);
-
 
 		user.credits -= 50;
 		await user.save();
-		console.log(10);
 
 		const interview = await Interview.create({
 			userId: user._id,
@@ -246,9 +247,10 @@ console.log(9);
 			experience,
 			mode,
 			resumeTxt: safeResume,
+			skills: normalizedSkills,
+			projects: normalizedProjects,
 			questions: interviewQuestions,
 		});
-		console.log(11);
 
 
 		return res.status(200).json({
@@ -257,10 +259,8 @@ console.log(9);
 			username: user.username,
 			questions: interviewQuestions,
 		});
-		console.log(12);
 
 	} catch (error) {
-		console.log(13);
 
 		console.error("Generate question error:", error);
 		return res.status(500).json({
@@ -428,11 +428,16 @@ const finishInterview = async (req, res) => {
 		await interview.save();
 
 		return res.status(200).json({
+			role: interview.role,
+			experience: interview.experience,
+			skills: interview.skills || [],
+			projects: interview.projects || [],
 			finalScore,
 			averageCommunication,
 			averageCorrectness,
 			averageConfidence,
 			questionWiseScore,
+			createdAt: interview.createdAt,
 		});
 	} catch (error) {
 		return res.status(500).json({
@@ -488,6 +493,10 @@ const getInterviewReport = async(req, res) => {
 			: 0;
 
 		return res.status(200).json({
+			role: interview.role,
+			experience: interview.experience,
+			skills: interview.skills || [],
+			projects: interview.projects || [],
 			finalScore: Number(interview.finalScore) || 0,
 			averageCommunication: average("communication"),
 			averageCorrectness: average("correctness"),
@@ -502,6 +511,7 @@ const getInterviewReport = async(req, res) => {
 				communication: Number(question.communication) || 0,
 				correctness: Number(question.correctness) || 0,
 			})),
+			createdAt: interview.createdAt,
 		});
 	} catch (error) {
 		return res.status(500).json({

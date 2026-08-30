@@ -3,75 +3,78 @@ import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { auth, googleAuthProvider } from '../utils/firebase'
 import { serverurl } from '../App'
-import axios from 'axios';
-import { useSelector, useDispatch } from 'react-redux'
-import { setUserdata } from '../redux/slices/userSlice';
+import axios from 'axios'
+import { useDispatch } from 'react-redux'
+import { setUserdata } from '../redux/slices/userSlice'
 
 function Auth() {
-  
   const dispatch = useDispatch()
   const navigate = useNavigate()
-
 
   const handleGoogleAuth = async () => {
     try {
       const response = await signInWithPopup(auth, googleAuthProvider)
-      let user = response.user;
-      let name = user.displayName;
-      let email = user.email;
-      console.log(response);
-      const result = await axios.post(serverurl + "/api/auth/google", {name, email}, {withCredentials:true});
-      console.log("Auth successful:", result.data);
-      dispatch(setUserdata(result.data));
-      navigate('/');
+      const user = response.user
+      const name = user.displayName
+      const email = user.email
+      const image = user.photoURL
+
+      const result = await axios.post(`${serverurl}/api/auth/google`, { name, email, image }, { withCredentials: true })
+
+      dispatch(setUserdata(result.data))
+      navigate('/')
     } catch (error) {
       console.log(error)
-      dispatch(setUserdata(null));
+      dispatch(setUserdata(null))
     }
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-100 px-4">
-      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/60">
-        <div className="mb-6 text-center">
-          <p className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-indigo-600">
-            HireReady
-          </p>
-          <h1 className="text-3xl font-bold text-slate-900">Practice. Perform. Get hired.</h1>
-          <p className="mt-3 text-sm text-slate-600">
-            Ace your mock interviews and build confidence before the real big day.
-          </p>
-        </div>
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#f4f8fb] px-4 py-8">
+      <div className="absolute -left-12 top-10 h-64 w-64 rounded-full bg-[#d9eff5] opacity-70 blur-3xl" aria-hidden="true" />
+      <div className="absolute bottom-0 right-0 h-72 w-72 rounded-full bg-[#e5f4ef] opacity-80 blur-3xl" aria-hidden="true" />
+      <div className="absolute left-1/2 top-1/2 h-96 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#f1f6ff] opacity-80 blur-3xl" aria-hidden="true" />
 
-        <button
-          type="button"
-          onClick={handleGoogleAuth}
-          className="flex w-full items-center justify-center gap-3 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition duration-200 hover:border-slate-400 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-            className="h-5 w-5"
+      <div className="relative w-full max-w-md">
+        <div className="rounded-[28px] border border-slate-200/80 bg-white/90 p-7 shadow-[0_12px_40px_rgba(15,23,42,0.06)] backdrop-blur-sm sm:p-8">
+          <div className="mb-7 flex items-center justify-center gap-3 text-slate-800">
+            <img src="/Images/PlatformImage.png" alt="HireReady logo" className="h-10 w-10 rounded-xl object-cover" />
+            <span className="text-lg font-semibold tracking-tight">HireReady</span>
+          </div>
+
+          <div className="mb-7 text-center">
+            <h1 className="text-[2rem] font-semibold leading-tight tracking-[-0.04em] text-slate-900">
+              Practice with purpose.
+            </h1>
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              Turn mock interviews into real confidence with focused prep and meaningful feedback.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleGoogleAuth}
+            className="group flex w-full items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-sky-200 hover:bg-sky-50 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:ring-offset-2"
           >
-            <path
-              fill="#EA4335"
-              d="M12 10.2v3.9h5.4c-.2 1.3-1.5 3.9-5.4 3.9-3.3 0-6-2.7-6-6s2.7-6 6-6c1.9 0 3.2.8 3.9 1.5l2.7-2.7C16.8 3.1 14.6 2.2 12 2.2 6.9 2.2 2.8 6.3 2.8 11.4S6.9 20.6 12 20.6c6.9 0 11.4-4.8 11.4-11.6 0-.8-.1-1.4-.2-2H12z"
-            />
-            <path
-              fill="#34A853"
-              d="M3.9 7.1l3.6 2.6c1-1.9 3.2-3.2 5.5-3.2 1.9 0 3.2.8 3.9 1.5l2.7-2.7C16.8 3.1 14.6 2.2 12 2.2 8.3 2.2 5.1 4.5 3.9 7.1z"
-            />
-            <path
-              fill="#FBBC05"
-              d="M3.9 15.7A9.3 9.3 0 0 1 3.5 11.4c0-.8.1-1.5.3-2.3l3.8 2.8a5.7 5.7 0 0 0-.2 1.5c0 .5.1 1 .2 1.5L3.9 15.7z"
-            />
-            <path
-              fill="#4285F4"
-              d="M12 20.6c2.3 0 4.3-.8 5.8-2.2l-2.7-2.3c-.7.5-1.7.9-3.1.9-2.3 0-4.2-1.5-5.1-3.6l-3.7 2.8A9.3 9.3 0 0 0 12 20.6z"
-            />
-          </svg>
-          Continue with Google
-        </button>
+            <img src="/Images/GoogleIcon.png" alt="Google" className="h-5 w-5 flex-shrink-0" />
+            Continue with Google
+          </button>
+
+          <div className="mt-6 flex items-center gap-3">
+            <span className="h-px flex-1 bg-slate-200" aria-hidden="true" />
+            <span className="text-[10px] font-medium uppercase tracking-[0.22em] text-slate-400">
+              Secure access
+            </span>
+            <span className="h-px flex-1 bg-slate-200" aria-hidden="true" />
+          </div>
+
+          <div className="mt-6 rounded-2xl border border-sky-100 bg-sky-50/70 px-4 py-3 text-center">
+            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-sky-700">Flexible sign in</p>
+            <p className="mt-2 text-xs leading-5 text-slate-600">
+              Email and password login can be added here later without a full redesign.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   )
